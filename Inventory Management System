@@ -1,0 +1,196 @@
+package com.inventory.management;
+import java.io.*;
+import java.util.*;
+
+public class InventoryManager {
+
+    private static final String DATA_FILE = "inventory_data.txt";
+    private static final Scanner scanner = new Scanner(System.in);
+    private static final List<Item> items = new ArrayList<>();
+
+    // ------------------ Product Class ------------------
+    static class Item {
+        private final int productId;
+        private String productName;
+        private int stockQuantity;
+        private double unitPrice;
+
+        public Item(int productId, String productName, int stockQuantity, double unitPrice) {
+            this.productId = productId;
+            this.productName = productName;
+            this.stockQuantity = stockQuantity;
+            this.unitPrice = unitPrice;
+        }
+
+        public int getProductId() { return productId; }
+        public String getProductName() { return productName; }
+        public int getStockQuantity() { return stockQuantity; }
+        public double getUnitPrice() { return unitPrice; }
+
+        public double computeStockValue() {
+            return stockQuantity * unitPrice;
+        }
+
+        public String serialize() {
+            return productId + ";" + productName + ";" + stockQuantity + ";" + unitPrice;
+        }
+
+        public static Item deserialize(String record) {
+            String[] parts = record.split(";");
+            return new Item(
+                    Integer.parseInt(parts[0]),
+                    parts[1],
+                    Integer.parseInt(parts[2]),
+                    Double.parseDouble(parts[3])
+            );
+        }
+
+        public void printDetails() {
+            System.out.println("\nProduct ID: " + productId);
+            System.out.println("Name      : " + productName);
+            System.out.println("Quantity  : " + stockQuantity);
+            System.out.println("Unit Price: $" + unitPrice);
+            System.out.println("Value     : $" + computeStockValue());
+        }
+    }
+
+    // ------------------ Main ------------------
+    public static void main(String[] args) {
+        loadData();
+        runMenu();
+    }
+
+    private static void runMenu() {
+        int option;
+        do {
+            System.out.println("\n====== Inventory Control System ======");
+            System.out.println("1. Register New Product");
+            System.out.println("2. View All Products");
+            System.out.println("3. Find Product");
+            System.out.println("4. Show Total Inventory Value");
+            System.out.println("5. Save Records");
+            System.out.println("6. Quit");
+            System.out.print("Select option: ");
+
+            option = getIntegerInput();
+
+            switch (option) {
+                case 1 -> registerProduct();
+                case 2 -> listProducts();
+                case 3 -> findProduct();
+                case 4 -> showInventoryValue();
+                case 5 -> saveData();
+                case 6 -> {
+                    saveData();
+                    System.out.println("System closed successfully.");
+                }
+                default -> System.out.println("Invalid selection.");
+            }
+
+        } while (option != 6);
+    }
+
+    // ------------------ Functionalities ------------------
+
+    private static void registerProduct() {
+        System.out.print("Enter Product ID: ");
+        int id = getIntegerInput();
+
+        if (isDuplicateId(id)) {
+            System.out.println("Product ID already exists!");
+            return;
+        }
+
+        scanner.nextLine();
+        System.out.print("Enter Product Name: ");
+        String name = scanner.nextLine();
+
+        System.out.print("Enter Quantity: ");
+        int quantity = getIntegerInput();
+
+        System.out.print("Enter Unit Price: ");
+        double price = getDoubleInput();
+
+        items.add(new Item(id, name, quantity, price));
+        System.out.println("Product successfully registered.");
+    }
+
+    private static void listProducts() {
+        if (items.isEmpty()) {
+            System.out.println("Inventory is empty.");
+            return;
+        }
+
+        items.forEach(Item::printDetails);
+    }
+
+    private static void findProduct() {
+        System.out.print("Enter Product ID to search: ");
+        int id = getIntegerInput();
+
+        Optional<Item> result = items.stream()
+                .filter(p -> p.getProductId() == id)
+                .findFirst();
+
+        result.ifPresentOrElse(
+                Item::printDetails,
+                () -> System.out.println("Product not found.")
+        );
+    }
+
+    private static void showInventoryValue() {
+        double totalValue = items.stream()
+                .mapToDouble(Item::computeStockValue)
+                .sum();
+
+        System.out.println("Total Inventory Worth: $" + totalValue);
+    }
+
+    // ------------------ Utility Methods ------------------
+
+    private static boolean isDuplicateId(int id) {
+        return items.stream().anyMatch(p -> p.getProductId() == id);
+    }
+
+    private static int getIntegerInput() {
+        while (!scanner.hasNextInt()) {
+            System.out.print("Invalid input. Enter a number: ");
+            scanner.next();
+        }
+        return scanner.nextInt();
+    }
+
+    private static double getDoubleInput() {
+        while (!scanner.hasNextDouble()) {
+            System.out.print("Invalid input. Enter a valid price: ");
+            scanner.next();
+        }
+        return scanner.nextDouble();
+    }
+
+    private static void saveData() {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(DATA_FILE))) {
+            for (Item item : items) {
+                writer.write(item.serialize());
+                writer.newLine();
+            }
+            System.out.println("Data stored successfully.");
+        } catch (IOException e) {
+            System.out.println("Error while saving records.");
+        }
+    }
+
+    private static void loadData() {
+        File file = new File(DATA_FILE);
+        if (!file.exists()) return;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                items.add(Item.deserialize(line));
+            }
+        } catch (IOException e) {
+            System.out.println("Error loading previous data.");
+        }
+    }
+}
